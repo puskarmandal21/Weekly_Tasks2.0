@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Routine</title>
+    
+    <!-- 1. Load React and Tailwind from the Internet -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- 2. Configure Tailwind Colors -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        wine: '#722F37',
+                        cream: '#FDFBF7',
+                        gold: '#D4AF37',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { background-color: #FDFBF7; }
+        /* Smooth scrolling */
+        html { scroll-behavior: smooth; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- 3. The React Application Code -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ICONS (SVG Helpers to avoid external library dependencies) ---
+        const Icon = ({ path, size = 24, className = "" }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width={size} 
+                height={size} 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className={className}
+            >
+                {path}
+            </svg>
+        );
+
+        const Icons = {
+            Calendar: <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />,
+            Check: <polyline points="20 6 9 17 4 12" />,
+            ChevronLeft: <polyline points="15 18 9 12 15 6" />,
+            ChevronRight: <polyline points="9 18 15 12 9 6" />,
+            Layout: <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />,
+            Plus: <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />,
+            Trash2: <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" />,
+            X: <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />,
+            Atom: <circle cx="12" cy="12" r="1" /><path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5 2.04 2.03 7.36.02 11.9 4.5 4.52 4.54 6.54 9.87 4.5 11.9z" transform="rotate(45 12 12)" /><path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5 2.04 2.03 7.36.02 11.9 4.5 4.52 4.54 6.54 9.87 4.5 11.9z" transform="rotate(-45 12 12)" />,
+            BookOpen: <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />,
+            Pi: <line x1="9" y1="4" x2="9" y2="20" /><line x1="4" y1="7" x2="20" y2="7" /><path d="M15 4v13a3 3 0 0 1-3 3" />
+        };
+
+        // --- UTILS ---
+        const formatDateKey = (date) => date.toISOString().split('T')[0];
+        const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        
+        const getStartOfWeek = (date) => {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            return new Date(d.setDate(diff));
+        };
+
+        const generateWeekDays = (startDate) => {
+            const days = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(startDate);
+                d.setDate(startDate.getDate() + i);
+                days.push(d);
+            }
+            return days;
+        };
+
+        const getMonthDays = (year, month) => {
+            const date = new Date(year, month, 1);
+            const days = [];
+            while (date.getMonth() === month) {
+                days.push(new Date(date));
+                date.setDate(date.getDate() + 1);
+            }
+            return days;
+        };
+
+        // --- COMPONENTS ---
+
+        const AcademicBackground = () => (
+            <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-5">
+                <div className="absolute top-10 left-10 transform -rotate-12 text-wine"><Icon path={Icons.Pi} size={120} /></div>
+                <div className="absolute top-1/4 right-20 transform rotate-45 text-wine"><Icon path={Icons.Atom} size={140} /></div>
+                <div className="absolute bottom-20 left-1/3 transform rotate-12 text-wine"><Icon path={Icons.BookOpen} size={100} /></div>
+                <div className="absolute top-1/2 left-10 w-32 h-32 border-4 border-wine rounded-full opacity-50"></div>
+                <div className="absolute top-20 right-1/3 w-20 h-20 border-4 border-wine rotate-45 opacity-50"></div>
+            </div>
+        );
+
+        const TaskModal = ({ isOpen, onClose, date, taskIndex, tasksData, onSave, columnTitle }) => {
+            const [text, setText] = useState("");
+            const [isCompleted, setIsCompleted] = useState(false);
+
+            useEffect(() => {
+                if (isOpen && date) {
+                    const dateKey = formatDateKey(date);
+                    const dayTasks = tasksData[dateKey] || {};
+                    const specificTask = dayTasks[taskIndex] || { text: "", completed: false };
+                    setText(specificTask.text);
+                    setIsCompleted(specificTask.completed);
+                }
+            }, [isOpen, date, taskIndex, tasksData]);
+
+            if (!isOpen) return null;
+
+            const handleSave = () => {
+                onSave(formatDateKey(date), taskIndex, { text, completed: isCompleted });
+                onClose();
+            };
+
+            const handleDelete = () => {
+                onSave(formatDateKey(date), taskIndex, { text: "", completed: false });
+                onClose();
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                    <div className="bg-cream rounded-xl shadow-2xl w-full max-w-md border-t-8 border-wine animate-[fadeIn_0.2s_ease-out]">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h2 className="text-2xl font-serif font-bold text-wine">
+                                        {date.toLocaleDateString('en-US', { weekday: 'long' })}
+                                    </h2>
+                                    <p className="text-[#9D5C63]">{date.toLocaleDateString()} • {columnTitle}</p>
+                                </div>
+                                <button onClick={onClose} className="text-gray-400 hover:text-wine transition-colors">
+                                    <Icon path={Icons.X} size={24} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-600 mb-1">Task Description</label>
+                                    <textarea
+                                        value={text}
+                                        onChange={(e) => setText(e.target.value)}
+                                        placeholder="What needs to be done?"
+                                        className="w-full p-4 rounded-lg border border-[#E5D4D6] focus:border-wine focus:ring-1 focus:ring-wine outline-none bg-white min-h-[120px] resize-none text-gray-800"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div 
+                                    className="flex items-center space-x-3 p-3 rounded-lg border border-[#E5D4D6] cursor-pointer hover:bg-red-50 transition-colors"
+                                    onClick={() => setIsCompleted(!isCompleted)}
+                                >
+                                    <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${isCompleted ? 'bg-wine border-wine' : 'border-gray-300 bg-white'}`}>
+                                        {isCompleted && <Icon path={Icons.Check} size={16} className="text-white" />}
+                                    </div>
+                                    <span className={`font-medium ${isCompleted ? 'text-wine' : 'text-gray-600'}`}>
+                                        Mark as Completed
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-8">
+                                <button onClick={handleDelete} className="flex-1 py-3 px-4 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 font-medium transition-colors flex items-center justify-center gap-2">
+                                    <Icon path={Icons.Trash2} size={18} /> Clear
+                                </button>
+                                <button onClick={handleSave} className="flex-1 py-3 px-4 rounded-lg bg-wine text-white hover:bg-[#5B252C] font-medium shadow-lg hover:shadow-xl transition-all">
+                                    Save Routine
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [currentView, setCurrentView] = useState('routine');
+            const [currentDate, setCurrentDate] = useState(new Date());
+            const [columnCount, setColumnCount] = useState(3);
+            
+            // Initial Data Load
+            const [tasksData, setTasksData] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('wineRoutineData');
+                    return saved ? JSON.parse(saved) : {};
+                } catch(e) { return {}; }
+            });
+
+            const [modalState, setModalState] = useState({ isOpen: false, date: null, taskIndex: 0 });
+
+            useEffect(() => {
+                localStorage.setItem('wineRoutineData', JSON.stringify(tasksData));
+            }, [tasksData]);
+
+            const handleSaveTask = (dateKey, index, taskObj) => {
+                setTasksData(prev => ({
+                    ...prev,
+                    [dateKey]: { ...(prev[dateKey] || {}), [index]: taskObj }
+                }));
+            };
+
+            const openModal = (date, index) => setModalState({ isOpen: true, date, taskIndex: index });
+
+            // --- Views ---
+            
+            const WeeklyView = () => {
+                const startOfWeek = getStartOfWeek(currentDate);
+                const weekDays = generateWeekDays(startOfWeek);
+
+                return (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-[#E5D4D6]">
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 7); setCurrentDate(d); }} className="p-2 hover:bg-red-50 rounded-full text-wine">
+                                    <Icon path={Icons.ChevronLeft} />
+                                </button>
+                                <h2 className="text-xl font-serif font-bold text-wine">
+                                    Week of {startOfWeek.toLocaleDateString()}
+                                </h2>
+                                <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 7); setCurrentDate(d); }} className="p-2 hover:bg-red-50 rounded-full text-wine">
+                                    <Icon path={Icons.ChevronRight} />
+                                </button>
+                            </div>
+                            <button onClick={() => setCurrentDate(new Date())} className="text-sm font-medium text-wine hover:underline">Jump to Today</button>
+                        </div>
+
+                        <div className="overflow-x-auto pb-6">
+                            <table className="w-full min-w-[800px] border-collapse bg-white rounded-xl shadow-lg overflow-hidden">
+                                <thead>
+                                    <tr className="bg-wine text-white">
+                                        <th className="p-4 text-left font-serif font-medium w-48 border-r border-[#8B3A44]">Day of Week</th>
+                                        {Array.from({ length: columnCount }).map((_, i) => (
+                                            <th key={i} className="p-4 text-center font-serif font-medium min-w-[160px] border-r border-[#8B3A44]">Task {i + 1}</th>
+                                        ))}
+                                        <th className="p-4 text-center w-16 bg-[#5B252C] cursor-pointer hover:bg-[#4A1E24] transition-colors" onClick={() => setColumnCount(c => c + 1)}>
+                                            <div className="flex justify-center items-center h-full w-full"><Icon path={Icons.Plus} size={20} /></div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {weekDays.map((day, rowIndex) => {
+                                        const dateKey = formatDateKey(day);
+                                        const isToday = formatDateKey(new Date()) === dateKey;
+                                        return (
+                                            <tr key={dateKey} className={`${rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#FAF6F6]'} hover:bg-[#FDF2F4] transition-colors`}>
+                                                <td className={`p-4 border-r border-gray-100 ${isToday ? 'bg-red-50' : ''}`}>
+                                                    <div className={`font-bold ${isToday ? 'text-wine' : 'text-gray-700'}`}>{WEEKDAY_NAMES[day.getDay()]}</div>
+                                                    <div className="text-xs text-gray-400">{day.toLocaleDateString()}</div>
+                                                </td>
+                                                {Array.from({ length: columnCount }).map((_, colIndex) => {
+                                                    const task = tasksData[dateKey]?.[colIndex];
+                                                    return (
+                                                        <td key={colIndex} className="p-2 border-r border-gray-100 cursor-pointer relative group" onClick={() => openModal(day, colIndex)}>
+                                                            <div className={`h-24 w-full rounded-lg p-3 border transition-all duration-200 ${task?.completed ? 'bg-[#E8F5E9] border-green-200' : task?.text ? 'bg-white border-gray-200 shadow-sm group-hover:border-wine' : 'bg-transparent border-transparent group-hover:bg-white group-hover:shadow-sm'}`}>
+                                                                {task?.text ? (
+                                                                    <div className="flex flex-col h-full justify-between">
+                                                                        <span className={`text-sm line-clamp-3 ${task.completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{task.text}</span>
+                                                                        {task.completed && <div className="self-end text-green-600 bg-green-100 rounded-full p-1"><Icon path={Icons.Check} size={12} /></div>}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="h-full flex items-center justify-center opacity-0 group-hover:opacity-40 transition-opacity"><Icon path={Icons.Plus} className="text-wine" /></div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    );
+                                                })}
+                                                <td className="bg-gray-50/50"></td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
+            };
+
+            const CalendarView = () => {
+                const daysInMonth = getMonthDays(currentDate.getFullYear(), currentDate.getMonth());
+                const startDay = daysInMonth[0].getDay();
+                const emptySlots = Array(startDay).fill(null);
+
+                return (
+                    <div className="animate-[fadeIn_0.5s_ease-out]">
+                        <div className="flex justify-between items-center mb-8">
+                            <div className="flex items-center gap-6">
+                                <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))} className="p-2 hover:bg-white hover:shadow-md rounded-full transition-all text-wine">
+                                    <Icon path={Icons.ChevronLeft} size={28} />
+                                </button>
+                                <h2 className="text-3xl font-serif font-bold text-wine">
+                                    {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                </h2>
+                                <button onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))} className="p-2 hover:bg-white hover:shadow-md rounded-full transition-all text-wine">
+                                    <Icon path={Icons.ChevronRight} size={28} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-7 gap-4">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                                <div key={d} className="text-center font-bold text-[#9D5C63] uppercase tracking-wider text-sm py-2">{d}</div>
+                            ))}
+                            {emptySlots.map((_, i) => <div key={`empty-${i}`} className="h-32"></div>)}
+                            {daysInMonth.map(day => {
+                                const dateKey = formatDateKey(day);
+                                const dayTasks = tasksData[dateKey] || {};
+                                const taskCount = Object.keys(dayTasks).length;
+                                const completedCount = Object.values(dayTasks).filter(t => t.completed).length;
+                                const isToday = formatDateKey(new Date()) === dateKey;
+
+                                return (
+                                    <div key={dateKey} onClick={() => openModal(day, 0)} className={`h-32 rounded-xl p-3 border transition-all cursor-pointer relative group overflow-hidden ${isToday ? 'bg-white border-wine ring-1 ring-wine' : 'bg-white/60 border-transparent hover:bg-white hover:shadow-lg hover:-translate-y-1'}`}>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className={`font-bold text-lg ${isToday ? 'text-wine' : 'text-gray-600'}`}>{day.getDate()}</span>
+                                            {taskCount > 0 && <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#FAF0F1] text-wine">{completedCount}/{taskCount} Done</span>}
+                                        </div>
+                                        <div className="space-y-1">
+                                            {Object.values(dayTasks).slice(0, 3).map((task, i) => (
+                                                task.text && <div key={i} className="flex items-center gap-1.5 text-xs text-gray-600">
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${task.completed ? 'bg-green-400' : 'bg-[#D4AF37]'}`}></div>
+                                                    <span className={`truncate ${task.completed ? 'line-through opacity-50' : ''}`}>{task.text}</span>
+                                                </div>
+                                            ))}
+                                            {taskCount > 3 && <div className="text-xs text-gray-400 pl-3">+{taskCount - 3} more</div>}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen text-gray-800 font-sans selection:bg-wine selection:text-white">
+                    <AcademicBackground />
+                    <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-[#E5D4D6] px-6 py-4 shadow-sm">
+                        <div className="max-w-7xl mx-auto flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-wine text-white p-2 rounded-lg"><Icon path={Icons.Layout} size={24} /></div>
+                                <div><h1 className="text-xl font-serif font-bold text-wine tracking-tight">Academic Routine</h1><p className="text-xs text-[#9D5C63]">Plan. Achieve. Repeat.</p></div>
+                            </div>
+                            <div className="flex bg-[#F5EBEB] p-1 rounded-lg">
+                                <button onClick={() => setCurrentView('routine')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${currentView === 'routine' ? 'bg-white text-wine shadow-sm' : 'text-gray-500 hover:text-wine'}`}>
+                                    <Icon path={Icons.Layout} size={16} /> Weekly Routine
+                                </button>
+                                <button onClick={() => setCurrentView('calendar')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${currentView === 'calendar' ? 'bg-white text-wine shadow-sm' : 'text-gray-500 hover:text-wine'}`}>
+                                    <Icon path={Icons.Calendar} size={16} /> Calendar
+                                </button>
+                            </div>
+                        </div>
+                    </nav>
+                    <main className="relative max-w-7xl mx-auto px-6 py-8 z-10">
+                        {currentView === 'routine' ? <WeeklyView /> : <CalendarView />}
+                    </main>
+                    <TaskModal isOpen={modalState.isOpen} date={modalState.date} taskIndex={modalState.taskIndex} tasksData={tasksData} onSave={handleSaveTask} onClose={() => setModalState({ ...modalState, isOpen: false })} columnTitle={currentView === 'routine' ? `Task ${modalState.taskIndex + 1}` : 'Tasks'} />
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
